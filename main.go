@@ -78,7 +78,7 @@ func postAlbums(c *gin.Context) {
 	db, err := dbFactory()
 
 	if err != nil {
-		c.IndentedJSON(http.StatusInternalServerError, err.Error())
+		c.IndentedJSON(http.StatusInternalServerError, gin.H{"statusCode": http.StatusInternalServerError, "error": err.Error()})
 		return
 	}
 
@@ -95,15 +95,30 @@ func postAlbums(c *gin.Context) {
 }
 
 func getAlbumByID(c *gin.Context) {
-	// id := c.Param("id")
+	id := c.Param("id")
+	var album Album
 
-	// for _, a := range albums {
-	//     if a.ID == id {
-	//         c.IndentedJSON(http.StatusOK, a)
-	//         return
-	//     }
-	// }
-	c.IndentedJSON(http.StatusNotFound, gin.H{"status": http.StatusNotFound, "message": "album not found"})
+	db, err := dbFactory()
+
+	if err != nil {
+		c.IndentedJSON(http.StatusInternalServerError, gin.H{"statusCode": http.StatusInternalServerError, "error": err.Error()})
+		return
+	}
+
+	defer db.Close()
+
+	row := db.QueryRow("SELECT * FROM album WHERE id = $1", id)
+
+	if err := row.Scan(&album.ID, &album.Title, &album.Artist, &album.Price); err != nil {
+		if err == sql.ErrNoRows {
+			c.IndentedJSON(http.StatusNotFound, gin.H{"statusCode": http.StatusNotFound, "error": "Album not found"})
+			return
+		}
+		c.IndentedJSON(http.StatusInternalServerError, gin.H{"statusCode": http.StatusInternalServerError, "error": err.Error()})
+        return
+	}
+
+	c.IndentedJSON(http.StatusOK, album)
 }
 
 func main() {
